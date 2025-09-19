@@ -1,0 +1,19 @@
+# for data validation and DOM structure
+pydantic
+# for PDF processing
+PyMuPDF
+# for image processing(preprocessing)
+Pillow
+opencv-python
+python-docx
+openpyxl
+python-pptx
+python-magic-bin; platform_system == "Windows"
+python-magic; platform_system != "Windows"
+uuid
+
+# primary OCR engine
+paddlepaddle
+paddleocr
+# for making requests to Ollama
+requests
