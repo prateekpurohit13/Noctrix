@@ -17,3 +17,5 @@ paddlepaddle
 paddleocr
 # for making requests to Ollama
 requests
+# For graph data structures
+networkx

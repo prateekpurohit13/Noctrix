@@ -4,10 +4,10 @@ from src.document_processor.main import process_input
 
 def main():
     input_dir = Path("data/input")
-    output_dir = Path("data/expected_output")
+    output_dir = Path("data/output")
     input_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
-    file_to_process = "Files.zip"   
+    file_to_process = "File_003.png"   
     test_path = input_dir / file_to_process
 
     if not test_path.exists():
