@@ -46,6 +46,13 @@ class ProcessingPipeline:
             #     "description": "Build entity relationships and semantic graphs"
             # },
             {
+                "name": "security_assessment",
+                "agent_capability": "security_risk_assessment",
+                "required": True,
+                "timeout_seconds": 3600,
+                "description": "Analyze extracted entities for security risks and vulnerabilities."
+            },
+            {
                 "name": "anonymization",
                 "agent_capability": "anonymization",
                 "required": True, 

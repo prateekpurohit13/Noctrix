@@ -6,6 +6,7 @@ from .agents import (
     SecurityEntityAgent,
     RelationshipMappingAgent,
     AnalysisAgent,
+    SecurityAssessmentAgent,
     AnonymizationAgent
 )
 
@@ -19,6 +20,7 @@ __all__ = [
     'SecurityEntityAgent', 
     'RelationshipMappingAgent',
     'AnalysisAgent',
+    'SecurityAssessmentAgent',
     'AnonymizationAgent'
 ]
 

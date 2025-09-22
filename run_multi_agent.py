@@ -10,6 +10,7 @@ from src.multi_agent_system import (
     # SecurityEntityAgent, 
     # RelationshipMappingAgent,
     AnalysisAgent,
+    SecurityAssessmentAgent,
     AnonymizationAgent
 )
 
@@ -50,6 +51,7 @@ def main():
             agents = [
             DocumentUnderstandingAgent(),
             AnalysisAgent(),
+            SecurityAssessmentAgent(),
             AnonymizationAgent()
         ]
             
