@@ -1,0 +1,66 @@
+{"ts": "2025-09-20 12:48:16", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 12:48:16", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 12:55:30", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 12:55:30", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 12:55:36", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 12:55:36", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 12:56:09", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 12:56:09", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:01:54", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:01:54", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:02:32", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:02:32", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:07:39", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:07:39", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:22:19", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:22:19", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:28:46", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:28:46", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:29:46", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:29:46", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:30:38", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:30:38", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:31:06", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:31:06", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:31:41", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:31:41", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:33:13", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:33:13", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 13:34:58", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 13:34:58", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-20 14:01:10", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-20 14:01:10", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 05:29:49", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 05:29:49", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 05:31:52", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 05:31:52", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 05:33:39", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 05:33:39", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 05:36:31", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 05:36:31", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 05:42:29", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 05:42:29", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 05:51:28", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 05:51:28", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 05:52:04", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 05:52:04", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 06:03:16", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 06:03:16", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 06:05:27", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 06:05:27", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 06:05:48", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 06:05:48", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 06:06:01", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 06:06:01", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 06:08:54", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 06:08:54", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-21 06:10:28", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-21 06:10:28", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-23 07:45:09", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-23 07:45:09", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-23 07:49:19", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-23 07:49:19", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-23 07:59:57", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-23 07:59:57", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
+{"ts": "2025-09-23 08:03:00", "component": "anonymizer", "event_type": "mapping_created", "details": {"entity": "user@domain.com", "token": "user_xxx"}}
+{"ts": "2025-09-23 08:03:00", "component": "analysis", "event_type": "finding_added", "details": {"id": "F002", "desc": "Firewall rule ANY\u2192ANY"}}
