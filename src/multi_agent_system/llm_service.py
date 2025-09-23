@@ -3,12 +3,13 @@ import json
 from typing import Dict, Any
 
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
-DEFAULT_MODEL = "mistral"
+FAST_MODEL = "gemma:2b"
+SMART_MODEL = "mistral"
 
-def get_llm_response(system_prompt: str, user_prompt: str, timeout: int = 120, retries: int = 2) -> Dict[str, Any]:
+def get_llm_response(system_prompt: str, user_prompt: str,  model_name: str = SMART_MODEL, timeout: int = 120, retries: int = 2) -> Dict[str, Any]:
     full_prompt = f"{system_prompt}\n\n{user_prompt}"   
     payload = {
-        "model": DEFAULT_MODEL,
+        "model": model_name,
         "prompt": full_prompt,
         "format": "json",
         "stream": False

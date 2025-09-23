@@ -49,7 +49,7 @@ class ProcessingPipeline:
                 "name": "security_assessment",
                 "agent_capability": "security_risk_assessment",
                 "required": True,
-                "timeout_seconds": 3600,
+                "timeout_seconds": 600,
                 "description": "Analyze extracted entities for security risks and vulnerabilities."
             },
             {

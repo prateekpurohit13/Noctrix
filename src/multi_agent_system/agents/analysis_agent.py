@@ -71,7 +71,7 @@ class AnalysisAgent(BaseAgent):
                 # Calculate the offset of the current chunk within the full document
                 chunk_offset = i * (self.chunk_size - self.chunk_overlap)               
                 user_prompt = user_prompt_template.format(text_chunk=chunk)
-                llm_response = llm_service.get_llm_response(system_prompt, user_prompt, timeout=task.timeout_seconds)
+                llm_response = llm_service.get_llm_response(system_prompt, user_prompt, model_name=llm_service.SMART_MODEL, timeout=task.timeout_seconds)
                 chunk_entities = llm_response.get("entities", [])
                 chunk_relationships = llm_response.get("relationships", [])
 

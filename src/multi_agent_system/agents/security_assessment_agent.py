@@ -50,15 +50,16 @@ class SecurityAssessmentAgent(BaseAgent):
             llm_response = llm_service.get_llm_response(
                 system_prompt, 
                 user_prompt,
+                model_name=llm_service.SMART_MODEL,
                 timeout=task.timeout_seconds
             )
             
             findings = llm_response.get("security_assessment_findings", [])           
             if not isinstance(findings, list):
                 raise ValueError("LLM response for 'security_assessment_findings' was not a list.")
-            output_data = task.input_data.copy()
-            output_data["security_assessment_findings"] = findings
-            
+            output_data = {
+                "security_assessment_findings": findings
+            }
             return self._create_result(task, TaskStatus.COMPLETED, data=output_data)
 
         except (ConnectionError, ValueError) as e:
