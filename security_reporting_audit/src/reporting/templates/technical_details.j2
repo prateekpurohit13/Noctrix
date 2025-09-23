@@ -1,0 +1,7 @@
+# Technical Details
+Detailed findings with anonymized evidence:
+{% for finding in findings %}
+- ID: {{ finding.id }}
+  Evidence: {{ finding.evidence }}
+  Risk: {{ finding.risk }}
+{% endfor %}
