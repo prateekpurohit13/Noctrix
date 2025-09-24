@@ -7,7 +7,8 @@ from .agents import (
     RelationshipMappingAgent,
     AnalysisAgent,
     SecurityAssessmentAgent,
-    AnonymizationAgent
+    AnonymizationAgent,
+    ReportingAgent
 )
 
 __all__ = [
@@ -21,7 +22,8 @@ __all__ = [
     'RelationshipMappingAgent',
     'AnalysisAgent',
     'SecurityAssessmentAgent',
-    'AnonymizationAgent'
+    'AnonymizationAgent',
+    'ReportingAgent'
 ]
 
 __version__ = '1.0.0'

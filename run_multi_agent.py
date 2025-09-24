@@ -11,9 +11,10 @@ from src.multi_agent_system import (
     # RelationshipMappingAgent,
     AnalysisAgent,
     SecurityAssessmentAgent,
-    AnonymizationAgent
+    AnonymizationAgent,
+    ReportingAgent
 )
-
+from src.reporting.utils import export_pdf_from_md 
 
 def progress_callback(stage: str, progress: float, message: str):
     print(f"  -> [{progress:5.1f}%] {stage}: {message}")
@@ -52,27 +53,36 @@ def main():
             DocumentUnderstandingAgent(),
             AnalysisAgent(),
             SecurityAssessmentAgent(),
-            AnonymizationAgent()
+            AnonymizationAgent(),
+            ReportingAgent()
         ]
             
             for agent in agents:
                 orchestrator.register_agent(agent)
             print(f"Registered {len(agents)} agents.")
             print("\n--- Stage 3: Multi-Agent Pipeline Execution ---")
-            pipeline_results = orchestrator.process_document(dom)
+            output_json = orchestrator.process_document(dom)
             print("\n--- Stage 4: Finalizing and Saving Results ---")
-            summary = pipeline_results.get("processing_summary", {})
-            is_success = summary.get("stages_failed", 1) == 0
-            print(f"  -> Pipeline Status: {'SUCCESS' if is_success else 'PARTIAL'}")
-            print(f"  -> Total Entities Found: {summary.get('total_entities_found', 'N/A')}")
-            output_file_name = f"{Path(dom.file_name).stem}_multi_agent.json"
-            output_file_path = Path("data/output") / output_file_name
-            
-            os.makedirs(output_file_path.parent, exist_ok=True)           
+            pipeline_status = output_json["output"].get("pipeline_status", "PARTIAL")
+            total_entities_found = output_json["output"].get("total_entities_found", "N/A")
+            print(f"  -> Pipeline Status: {pipeline_status}")
+            print(f"  -> Total Entities Found: {total_entities_found}")
+            file_name_stem = Path(dom.file_name).stem
+            output_dir = Path("data/output")
+            os.makedirs(output_dir, exist_ok=True)
+            # Save the main JSON output
+            json_output_path = output_dir / f"{file_name_stem}_multi_agent.json"
             import json
-            with open(output_file_path, 'w', encoding='utf-8') as f:
-                json.dump(pipeline_results, f, indent=2, ensure_ascii=False, default=str)           
-            print(f"Results for '{dom.file_name}' saved to: {output_file_path}")
+            with open(json_output_path, 'w', encoding='utf-8') as f:
+                json.dump(output_json, f, indent=2, ensure_ascii=False, default=str)
+            print(f"Full JSON results saved to: {json_output_path}")
+
+            md_report = output_json.get("output", {}).get("markdown_security_report", "")
+            if md_report:
+                pdf_path = output_dir / f"{file_name_stem}_security_report.pdf"
+                export_pdf_from_md(md_report, str(pdf_path))
+                print(f"Final PDF report saved to: {pdf_path}")
+            
             print("-" * 50)
 
         print("\n\nAll documents processed successfully!")

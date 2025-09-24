@@ -5,6 +5,7 @@ from .relationship_mapping_agent import RelationshipMappingAgent
 from .anonymization_agent import AnonymizationAgent
 from .analysis_agent import AnalysisAgent
 from .security_assessment_agent import SecurityAssessmentAgent
+from .reporting_agent import ReportingAgent
 __all__ = [
     'DocumentUnderstandingAgent',
     # 'PIIDetectionAgent', 
@@ -12,5 +13,6 @@ __all__ = [
     # 'RelationshipMappingAgent',
     'AnalysisAgent',
     'SecurityAssessmentAgent',
-    'AnonymizationAgent'
+    'AnonymizationAgent',
+    'ReportingAgent'
 ]

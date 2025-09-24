@@ -19,3 +19,8 @@ paddleocr
 requests
 # For graph data structures
 networkx
+jinja2
+cryptography
+markdown
+xhtml2pdf
+python-dotenv

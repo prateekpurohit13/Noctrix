@@ -1,0 +1,9 @@
+# Executive Summary
+
+This section provides a high-level overview of the most significant risks identified
+and their potential business impact.
+
+{% for risk in risks %}
+- **{{ risk.description }}**  
+  *Business Impact:* {{ risk.impact }}
+{% endfor %}
