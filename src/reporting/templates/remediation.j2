@@ -1,5 +1,24 @@
-# Remediation Roadmap
-Prioritized action items:
-{% for action in actions %}
-- [Priority {{ action.priority }}] {{ action.step }}
-{% endfor %}
+<h2>Remediation Roadmap</h2>
+<p>Prioritized actions with guidance:</p>
+<table border="1" cellspacing="0" cellpadding="6" width="100%">
+  <thead>
+    <tr>
+      <th width="10%">Priority</th>
+      <th width="30%">Action</th>
+      <th width="60%">Implementation Guidance</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for action in remediation.actions %}
+    <tr>
+      <td>{{ action.priority }}</td>
+      <td>{{ action.step }}</td>
+      <td>{{ action.guidance }}</td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="3">No remediation actions are required at this time.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

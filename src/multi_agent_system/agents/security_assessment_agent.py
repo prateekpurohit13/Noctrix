@@ -28,15 +28,17 @@ class SecurityAssessmentAgent(BaseAgent):
         """
 
         user_prompt = f"""
-        Analyze the following structured data. Identify and describe any security risks.
+        Analyze the following structured data. For each risk you identify, provide a full assessment.
 
-        For each risk you identify, provide:
+        For each risk, provide:
         - "finding_summary": A brief, one-sentence summary of the issue.
         - "risk_level": A score from 1 (Low) to 5 (Critical).
         - "detailed_explanation": A paragraph explaining the risk, referring ONLY to entity types.
-        - "recommendation": An actionable mitigation step, referring ONLY to entity types.
+        - "recommendation": A short, actionable step for the Remediation Roadmap (e.g., "Implement strong password policy").
+        - "implementation_guidance": A more detailed sentence explaining HOW to implement the recommendation (e.g., "Configure minimum 12-character complex passwords.").
+        - "compliance_mappings": A list of relevant compliance standards, like "NIST CSF: PR.AC-1" or "ISO 27001: A.9.2.1".
 
-        Return your findings ONLY as a single JSON object containing a list named "security_assessment_findings". If no risks are found, return an empty list.
+        Return your findings ONLY as a single JSON object in a list named "security_assessment_findings".
 
         Structured Data:
         ---

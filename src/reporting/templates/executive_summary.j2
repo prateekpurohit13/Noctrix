@@ -1,9 +1,22 @@
-# Executive Summary
-
-This section provides a high-level overview of the most significant risks identified
-and their potential business impact.
-
-{% for risk in risks %}
-- **{{ risk.description }}**  
-  *Business Impact:* {{ risk.impact }}
-{% endfor %}
+<h2>Executive Summary</h2>
+<p>This section provides a high-level overview of the most significant risks identified for the document <strong>{{ file_name }}</strong> and their potential business impact.</p>
+<table border="1" cellspacing="0" cellpadding="6" width="100%">
+  <thead>
+    <tr>
+      <th>Description</th>
+      <th>Business Impact</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for risk in risks %}
+    <tr>
+      <td>{{ risk.description }}</td>
+      <td>{{ risk.impact }}</td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="2">No significant risks were identified.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

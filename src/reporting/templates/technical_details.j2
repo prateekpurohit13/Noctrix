@@ -1,7 +1,26 @@
-# Technical Details
-Detailed findings with anonymized evidence:
-{% for finding in findings %}
-- ID: {{ finding.id }}
-  Evidence: {{ finding.evidence }}
-  Risk: {{ finding.risk }}
-{% endfor %}
+<h2>Technical Details</h2>
+<p>Detailed findings with anonymized evidence and mapped compliance controls:</p>
+<table border="1" cellspacing="0" cellpadding="6" width="100%">
+  <thead>
+    <tr>
+      <th width="10%">ID</th>
+      <th width="50%">Evidence</th>
+      <th width="15%">Risk</th>
+      <th width="25%">Mapped Compliance</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for finding in findings %}
+    <tr>
+      <td>{{ finding.id }}</td>
+      <td>{{ finding.evidence }}</td>
+      <td>{{ finding.risk }}</td>
+      <td>{{ finding.mapped_compliance }}</td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="4">No technical findings to report.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

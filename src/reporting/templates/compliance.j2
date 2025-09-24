@@ -1,5 +1,22 @@
-# Compliance Report
-Mapping to relevant standards:
-{% for item in compliance %}
-- {{ item.standard }}: {{ item.mapping }}
-{% endfor %}
+<h2>Compliance Report</h2>
+<p>Mapping to relevant standards:</p>
+<table border="1" cellspacing="0" cellpadding="6" width="100%">
+  <thead>
+    <tr>
+      <th width="30%">Standard</th>
+      <th width="70%">Mapping</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in compliance.mappings %}
+    <tr>
+      <td>{{ item.standard }}</td>
+      <td>{{ item.mapping }}</td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="2">No compliance standards were mapped for this report.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
