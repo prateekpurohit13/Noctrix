@@ -18,14 +18,13 @@ class SecurityAssessmentAgent(BaseAgent):
             print("     -> Skipping Security Assessment: No entities to analyze.")
             return self._create_result(task, TaskStatus.COMPLETED, data=task.input_data)
         sanitized_entities = [
-            {"entity_type": e.get("entity_type"), "text_preview": e.get("text", "")[:10] + "..."} 
-            for e in entities
+            {"entity_type": e.get("entity_type")} for e in entities
         ]
 
         system_prompt = """
-        You are a world-class cybersecurity risk analyst and penetration tester. You have been given a structured list of security entities and their relationships, which were extracted from a client's document.
-        Your task is to analyze this structured data to identify potential vulnerabilities, misconfigurations, and security risks. You must think like an attacker.
-        CRITICAL INSTRUCTION: In your `detailed_explanation` and `recommendation`, you MUST NOT repeat the sensitive `text` value of any entity. Instead, you MUST refer to the entities by their generic `entity_type` (e.g., "an `IP Address`", "a `Person`'s name", "the `Hostname`"). Your entire analysis must be privacy-preserving.
+        You are a world-class cybersecurity risk analyst. You have been given a structured list of entity types and their relationships.
+        Your task is to analyze this structured data to identify potential vulnerabilities and security risks.
+        CRITICAL INSTRUCTION: Your entire response MUST BE privacy-preserving. In your explanations and recommendations, you MUST refer to entities by their generic `entity_type` ONLY (e.g., "an `IP Address`", "a `Person`'", a `Hostname`, etc.). DO NOT use or repeat any actual sensitive values from the document.
         """
 
         user_prompt = f"""
@@ -34,8 +33,8 @@ class SecurityAssessmentAgent(BaseAgent):
         For each risk you identify, provide:
         - "finding_summary": A brief, one-sentence summary of the issue.
         - "risk_level": A score from 1 (Low) to 5 (Critical).
-        - "detailed_explanation": A paragraph explaining the risk, referring only to entity types.
-        - "recommendation": An actionable mitigation step, referring only to entity types.
+        - "detailed_explanation": A paragraph explaining the risk, referring ONLY to entity types.
+        - "recommendation": An actionable mitigation step, referring ONLY to entity types.
 
         Return your findings ONLY as a single JSON object containing a list named "security_assessment_findings". If no risks are found, return an empty list.
 
@@ -50,16 +49,15 @@ class SecurityAssessmentAgent(BaseAgent):
             llm_response = llm_service.get_llm_response(
                 system_prompt, 
                 user_prompt,
-                model_name=llm_service.SMART_MODEL,
                 timeout=task.timeout_seconds
             )
             
             findings = llm_response.get("security_assessment_findings", [])           
             if not isinstance(findings, list):
                 raise ValueError("LLM response for 'security_assessment_findings' was not a list.")
-            output_data = {
-                "security_assessment_findings": findings
-            }
+            output_data = task.input_data.copy()
+            output_data["security_assessment_findings"] = findings
+
             return self._create_result(task, TaskStatus.COMPLETED, data=output_data)
 
         except (ConnectionError, ValueError) as e:
