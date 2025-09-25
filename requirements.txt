@@ -24,3 +24,13 @@ cryptography
 markdown
 xhtml2pdf
 python-dotenv
+fastapi
+uvicorn[standard]
+python-multipart
+pymongo
+motor
+PyJWT
+passlib[bcrypt]
+asyncpg
+psycopg2-binary
+SQLAlchemy
