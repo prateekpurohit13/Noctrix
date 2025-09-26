@@ -46,7 +46,19 @@ COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0") == "1"
 JWT_ALG = "HS256"
 JWT_SECRET = base64.b64decode(os.getenv("KEK_BASE64"))
 
-app = FastAPI(title="Noctrix AI - Secure File Cleansing and Analysis Service")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.mongodb_client = AsyncIOMotorClient(os.environ["MONGO_URI"])
+    app.mongodb = app.mongodb_client[os.environ["MONGO_DB_NAME"]]
+    print("Connected to MongoDB.")
+    yield
+    app.mongodb_client.close()
+    print("MongoDB connection closed.")
+
+app = FastAPI(
+    title="Noctrix AI - Secure File Cleansing and Analysis Service",
+    lifespan=lifespan
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -58,24 +70,14 @@ app.add_middleware(
 def get_postgres_conn():
     return psycopg2.connect(POSTGRES_DSN)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.mongodb_client = AsyncIOMotorClient(os.environ["MONGO_URI"])
-    app.mongodb = app.mongodb_client[os.environ["MONGO_DB_NAME"]]
-    print("Connected to MongoDB.")
-    yield
-    app.mongodb_client.close()
-    print("MongoDB connection closed.")
-app = FastAPI(
-    title="Noctrix AI - Secure File Cleansing and Analysis Service",
-    lifespan=lifespan
-)
-
 class Job(BaseModel):
     job_id: str
     asset_id: int
     status: str = "pending"
     message: str = "Job has been queued."
+class LoginRequest(BaseModel): username: str; password: str
+class UserCreateRequest(BaseModel): username: str; password: str; role: str
+class ChangePasswordRequest(BaseModel): old_password: str; new_password: str
 
 def get_request_ip(req: Request) -> str:
     return req.client.host if req.client else "-"
@@ -113,6 +115,11 @@ def require_auth(req: Request):
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
     return payload
+
+def require_admin(user: dict = Depends(require_auth)):
+    if user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Administrator privileges required.")
+    return user
 
 def to_serializable(obj):
     if hasattr(obj, "model_dump"):
@@ -175,7 +182,7 @@ def login(data: LoginRequest, req: Request):
     access_token = issue_access_token(user["id"], user["username"], user["role"])
     refresh_token = issue_refresh_token_and_store(user["id"])
 
-    resp = JSONResponse({"ok": True, "role": user["role"]})
+    resp = JSONResponse({"ok": True, "role": user["role"], "password_change_required": user.get("password_change_required", False)})
     resp.set_cookie("access_token", access_token, httponly=True, secure=COOKIE_SECURE, samesite="lax")
     resp.set_cookie("refresh_token", refresh_token, httponly=True, secure=COOKIE_SECURE, samesite="lax")
     append_audit(user["id"], user["role"], "auth:login", None, get_request_ip(req), req.headers.get("user-agent", "-"), True, "")
@@ -220,6 +227,47 @@ def logout(req: Request, user: dict = Depends(require_auth)):
     resp.delete_cookie("refresh_token")
     append_audit(int(user["sub"]), user["role"], "auth:logout", None, get_request_ip(req), req.headers.get("user-agent", "-"), True, "")
     return resp
+
+@app.post("/users/me/change-password")
+def change_password(req: Request, data: ChangePasswordRequest, user: dict = Depends(require_auth)):
+    user_id = int(user["sub"])
+    conn = get_postgres_conn(); c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,)); db_user = c.fetchone()
+    if not db_user or not bcrypt.verify(data.old_password, db_user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid old password")
+    new_hash = bcrypt.hash(data.new_password)
+    c.execute("UPDATE users SET password_hash = %s, password_change_required = FALSE WHERE id = %s", (new_hash, user_id))
+    conn.commit(); conn.close()
+    resp = JSONResponse({"ok": True, "message": "Password changed successfully. Please log in again."})
+    resp.delete_cookie("access_token"); resp.delete_cookie("refresh_token")
+    return resp
+
+@app.post("/admin/users")
+def add_user(data: UserCreateRequest, admin: dict = Depends(require_admin)):
+    conn = get_postgres_conn(); c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE username = %s", (data.username,));
+    if c.fetchone(): raise HTTPException(status_code=409, detail="Username already exists")
+    new_hash = bcrypt.hash(data.password)
+    c.execute("INSERT INTO users (username, password_hash, role, password_change_required) VALUES (%s, %s, %s, TRUE)", (data.username, new_hash, data.role))
+    conn.commit(); conn.close()
+    return {"ok": True, "username": data.username, "role": data.role}
+
+@app.delete("/admin/users/{user_id}", status_code=204)
+def remove_user(user_id: int, admin: dict = Depends(require_admin)):
+    conn = get_postgres_conn(); c = conn.cursor()
+    c.execute("DELETE FROM users WHERE id = %s", (user_id,)); conn.commit(); conn.close()
+    return Response(status_code=204)
+
+@app.get("/admin/users")
+def list_users(admin: dict = Depends(require_admin)):
+    conn = get_postgres_conn(); c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT id, username, role, refresh_token_expires_at as last_login FROM users"); users = c.fetchall(); conn.close()
+    return users
+
+@app.get("/users/me")
+def get_current_user_info(user: dict = Depends(require_auth)):
+
+    return user
 
 @app.post("/upload", status_code=202)
 async def upload_file(req: Request, file: UploadFile = File(...), user: dict = Depends(require_auth)):

@@ -25,7 +25,8 @@ c.execute("""CREATE TABLE IF NOT EXISTS users(
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL,
     refresh_token_hash TEXT,
-    refresh_token_expires_at TIMESTAMP WITH TIME ZONE
+    refresh_token_expires_at TIMESTAMP WITH TIME ZONE,
+    password_change_required BOOLEAN DEFAULT FALSE
 )""")
 
 # Keys table
