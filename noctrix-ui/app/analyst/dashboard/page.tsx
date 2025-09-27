@@ -3,6 +3,8 @@
 import ProtectedPage from "@/components/ProtectedPage";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import JobStatusTracker from "@/components/JobStatusTracker";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth();
@@ -12,6 +14,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <h1 className="text-xl font-semibold">AI Document Analysis</h1>
                 <div className="flex items-center gap-4">
                     <span>Welcome, {user?.username} ({user?.role})</span>
+                    <ThemeSwitcher /> 
                     <Button variant="outline" onClick={logout}>Logout</Button>
                 </div>
             </header>
@@ -26,10 +29,14 @@ export default function AnalystDashboardPage() {
   return (
     <ProtectedPage>
       <DashboardLayout>
-        <h2 className="text-2xl font-bold mb-4">Analyst Dashboard</h2>
-        <p className="mb-6">Upload and process your documents here.</p>
-        <div className="p-8 border-2 border-dashed rounded-lg">
-            <p className="text-center text-gray-500">File Upload and Job Status components will go here.</p>
+        <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Analyst Dashboard</h2>
+            <p className="text-muted-foreground">
+                Upload and process your documents here. The status of your jobs will appear below.
+            </p>
+        </div>
+        <div className="mt-6">
+            <JobStatusTracker />
         </div>
       </DashboardLayout>
     </ProtectedPage>

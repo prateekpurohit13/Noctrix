@@ -31,6 +31,7 @@ from src.multi_agent_system.agents import (
 )
 from src.reporting.utils import export_pdf_from_md
 from pydantic import BaseModel
+from collections import defaultdict
 
 class LoginRequest(BaseModel):
     username: str
@@ -73,6 +74,7 @@ def get_postgres_conn():
 class Job(BaseModel):
     job_id: str
     asset_id: int
+    file_name: str
     status: str = "pending"
     message: str = "Job has been queued."
 class LoginRequest(BaseModel): username: str; password: str
@@ -264,6 +266,68 @@ def list_users(admin: dict = Depends(require_admin)):
     c.execute("SELECT id, username, role, refresh_token_expires_at as last_login FROM users"); users = c.fetchall(); conn.close()
     return users
 
+@app.get("/admin/analytics/summary")
+async def analytics_summary(admin: dict = Depends(require_admin)):
+    conn = get_postgres_conn()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT COUNT(*) as total_users FROM users")
+    total_users = c.fetchone()['total_users']
+    c.execute("SELECT COUNT(*) as login_success FROM audit WHERE action = 'auth:login' AND success = TRUE")
+    login_success = c.fetchone()['login_success']
+    c.execute("SELECT COUNT(*) as login_failed FROM audit WHERE action = 'auth:login' AND success = FALSE")
+    login_failed = c.fetchone()['login_failed']   
+    conn.close()
+    files_processed_last_7d = await app.mongodb.jobs.count_documents({
+        "status": "complete",
+    })
+
+    return {
+        "total_users": total_users,
+        "files_processed_last_7d": files_processed_last_7d,
+        "login_success": login_success,
+        "login_failed": login_failed,
+    }
+
+@app.get("/admin/analytics/usage_over_time")
+async def usage_over_time(days: int = 30, admin: dict = Depends(require_admin)):
+    conn = get_postgres_conn()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    c.execute("""
+        SELECT 
+            to_char(to_timestamp(ts), 'YYYY-MM-DD') as bucket, 
+            COUNT(*) as logins_count
+        FROM audit
+        WHERE to_timestamp(ts) >= %s AND action = 'auth:login' AND success = TRUE
+        GROUP BY bucket
+        ORDER BY bucket;
+    """, (since,))
+    logins_rows = c.fetchall()
+    conn.close()
+    pipeline = [
+        {"$match": {
+            "status": "complete",
+            "created_at": {"$gte": since}
+        }},
+        {"$group": {
+            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+            "jobs_count": {"$sum": 1}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    jobs_rows = await app.mongodb.jobs.aggregate(pipeline).to_list(length=100)
+    logins_by_day = {row["bucket"]: row["logins_count"] for row in logins_rows}
+    jobs_by_day = {row["_id"]: row["jobs_count"] for row in jobs_rows}
+    all_days = sorted(set(logins_by_day.keys()) | set(jobs_by_day.keys()))
+    points = []
+    for day in all_days:
+        points.append({
+            "bucket": day,
+            "logins_count": logins_by_day.get(day, 0),
+            "jobs_count": jobs_by_day.get(day, 0)
+        })
+    return {"granularity": "day", "points": points}
+
 @app.get("/users/me")
 def get_current_user_info(user: dict = Depends(require_auth)):
 
@@ -311,8 +375,9 @@ async def process_asset(asset_id: int, background_tasks: BackgroundTasks, req: R
     temp_file_path = os.path.join(temp_dir, f"{job_id}_{filename}")
     with open(temp_file_path, "wb") as f: f.write(content)
     job_data = Job(job_id=job_id, asset_id=asset_id, file_name=filename)
-
-    await app.mongodb.jobs.insert_one(job_data.model_dump())
+    job_dict = job_data.model_dump()
+    job_dict["created_at"] = datetime.now(timezone.utc)
+    await app.mongodb.jobs.insert_one(job_dict)
     background_tasks.add_task(run_ai_pipeline, job_id, asset_id, filename, temp_file_path, app.mongodb)
     append_audit(int(user["sub"]), role, "process:create", asset_id, get_request_ip(req), req.headers.get("user-agent", "-"), True, filename)
     

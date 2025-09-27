@@ -4,6 +4,9 @@ import ProtectedPage from "@/components/ProtectedPage";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import UserManagement from "@/components/admin/UserManagement";
+import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard"; 
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth();
@@ -21,6 +24,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="flex items-center gap-4">
                     <span>Welcome, {user?.username} ({user?.role})</span>
+                    <ThemeSwitcher />
                     <Button variant="outline" onClick={logout}>Logout</Button>
                 </div>
             </header>
@@ -35,15 +39,14 @@ export default function AdminDashboardPage() {
   return (
     <ProtectedPage allowedRoles={["Admin"]}>
       <DashboardLayout>
-          <h2 className="text-2xl font-bold mb-4">Admin Dashboard</h2>
-          <p className="mb-6">Manage users and monitor system analytics.</p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="p-8 border-2 border-dashed rounded-lg">
-                  <p className="text-center text-gray-500">User Management Table component will go here.</p>
-              </div>
-              <div className="p-8 border-2 border-dashed rounded-lg">
-                   <p className="text-center text-gray-500">Analytics Charts component will go here.</p>
-              </div>
+          <div className="space-y-4 mb-6">
+            <h2 className="text-2xl font-bold">Admin Dashboard</h2>
+            <p className="text-muted-foreground">Manage users and monitor system analytics.</p>
+          </div>
+          
+          <div className="space-y-8">
+              <AnalyticsDashboard />
+              <UserManagement />
           </div>
 
       </DashboardLayout>
