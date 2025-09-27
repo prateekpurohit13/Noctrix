@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import apiClient from '@/lib/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { Search } from 'lucide-react';
 
 interface User {
   id: number;
@@ -82,6 +82,10 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: () => void }) {
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Analyst'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fetchUsers = async () => {
     try {
@@ -97,6 +101,24 @@ export default function UserManagement() {
     fetchUsers();
   }, []);
 
+  const filteredUsers = useMemo(() => {
+    return users
+      .filter(user => 
+        user.username.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .filter(user => 
+        roleFilter === 'all' ? true : user.role === roleFilter
+      );
+  }, [users, searchTerm, roleFilter]);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
   const handleDelete = async (userId: number, username: string) => {
     if (!confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
         return;
@@ -104,7 +126,7 @@ export default function UserManagement() {
     try {
         await apiClient.delete(`/admin/users/${userId}`);
         toast.success(`User "${username}" deleted successfully.`);
-        fetchUsers(); // Refresh the list
+        fetchUsers();
     } catch (error: any) {
         toast.error(error.response?.data?.detail || 'Failed to delete user.');
     }
@@ -120,32 +142,83 @@ export default function UserManagement() {
         <AddUserDialog onUserAdded={fetchUsers} />
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Username</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Last Login</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.username}</TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>
-                    {user.last_login ? format(new Date(user.last_login), 'PPpp') : 'Never'}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(user.id, user.username)}>
-                    Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="flex items-center gap-4 mb-4">
+            <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    type="search" 
+                    placeholder="Search by username..." 
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <Select value={roleFilter} onValueChange={(value: any) => setRoleFilter(value)}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Analyst">Analyst</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
+        <div className="rounded-md border">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>Username</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {paginatedUsers.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No matching users found.</TableCell></TableRow>
+                ) : (
+                    paginatedUsers.map((user) => (
+                    <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.username}</TableCell>
+                        <TableCell>{user.role}</TableCell>
+                        <TableCell>
+                            {user.last_login ? format(new Date(user.last_login), 'PPpp') : 'Never'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(user.id, user.username)}>
+                            Delete
+                        </Button>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
+            </TableBody>
+            </Table>
+        </div>
+
+        <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+                Showing {paginatedUsers.length} of {filteredUsers.length} users.
+            </div>
+            <div className="flex items-center gap-2">
+                <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                    <SelectTrigger className="w-[70px]"><SelectValue placeholder={itemsPerPage} /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                    Previous
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                    Next
+                </Button>
+            </div>
+        </div>
       </CardContent>
     </Card>
   );

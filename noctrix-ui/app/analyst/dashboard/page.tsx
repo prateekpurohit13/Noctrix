@@ -11,7 +11,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex min-h-screen flex-col">
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-4">
-                <h1 className="text-xl font-semibold">AI Document Analysis</h1>
+                <h1 className="text-xl font-semibold">Noctrix</h1>
                 <div className="flex items-center gap-4">
                     <span>Welcome, {user?.username} ({user?.role})</span>
                     <ThemeSwitcher /> 

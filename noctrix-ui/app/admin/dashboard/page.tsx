@@ -14,7 +14,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-screen flex-col">
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-4">
                 <div className="flex items-center gap-6">
-                    <h1 className="text-xl font-semibold">AI Document Analysis</h1>
+                    <h1 className="text-xl font-semibold">Noctrix</h1>
                     <nav className="flex items-center gap-4 text-sm font-medium">
                         <Link href="/analyst/dashboard" className="text-muted-foreground hover:text-foreground">Analyst View</Link>
                         {user?.role === 'Admin' && (
