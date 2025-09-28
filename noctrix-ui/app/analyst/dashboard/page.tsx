@@ -44,7 +44,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div>
           <div className="text-sm text-muted-foreground mb-2">Account <br /></div>
           <div className="font-medium">{user?.username}</div>
-          <Badge variant="outline" className="mt-1">{user?.role}</Badge>
+          <Badge variant="default" className="mt-1 bg-cyan-500 hover:bg-cyan-600">{user?.role}</Badge>
           </div>
           <Button
           variant="outline"
