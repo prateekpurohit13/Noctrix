@@ -1,5 +1,4 @@
 import os
-import json
 from dotenv import load_dotenv
 from ..base_agent import BaseAgent, AgentTask, AgentResult, TaskStatus
 from src.audit.logger import AuditLogger
@@ -17,7 +16,8 @@ class ReportingAgent(BaseAgent):
     def _transform_data_to_context(self, pipeline_data: dict) -> dict:
         context = {
             "file_name": pipeline_data.get("file_name", "N/A"),
-            "document_type": pipeline_data.get("document_type", "Unknown")
+            "document_type": pipeline_data.get("document_type", "Unknown"),
+            "document_description": pipeline_data.get("document_description", "")
         }
         
         risks, tech_findings, actions, compliance_mappings = [], [], [], []      
