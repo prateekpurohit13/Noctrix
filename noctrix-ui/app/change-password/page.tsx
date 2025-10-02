@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import apiClient from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -99,9 +100,13 @@ export default function ChangePasswordPage() {
       
       <div className="absolute top-6 left-6 z-10">
         <div className="flex items-center gap-2 text-white">
-          <div className="p-2 rounded-lg bg-teal-500/20 border border-teal-500/30">
-            <Shield className="h-5 w-5 text-teal-400" />
-          </div>
+          <Image
+            src="/logo.jpg"
+            alt="Noctrix AI Logo"
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
           <span className="text-xl font-bold">Noctrix</span>
         </div>
       </div>

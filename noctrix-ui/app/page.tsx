@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -10,10 +11,14 @@ export default function Home() {
       
       <main className="relative z-10 flex flex-col items-center justify-center px-6 py-12 text-center max-w-5xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
-          <div className="flex items-center justify-center w-12 h-12 bg-teal-500/10 rounded-xl border border-teal-500/20">
-            <div className="w-6 h-6 bg-teal-500 rounded-lg" />
-          </div>
-          <span className="text-2xl font-bold text-white tracking-tight">Noctrix AI</span>
+          <Image
+            src="/logo.jpg"
+            alt="Noctrix AI Logo"
+            width={42}
+            height={42}
+            className="rounded-lg"
+          />
+          <span className="text-3xl font-bold text-white tracking-tight">Noctrix AI</span>
         </div>
 
         <h1 className="text-5xl font-bold tracking-tight text-white sm:text-6xl md:text-7xl leading-tight">
@@ -65,7 +70,7 @@ export default function Home() {
               </svg>
             </div>
             <h3 className="text-sm font-semibold text-white mb-2">AI-Powered</h3>
-            <p className="text-xs text-slate-400 text-center">Advanced machine learning analysis</p>
+            <p className="text-xs text-slate-400 text-center">Advanced multi-agent analysis</p>
           </div>
 
           <div className="flex flex-col items-center p-6 rounded-2xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm">

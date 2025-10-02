@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,9 +62,13 @@ export default function LoginPage() {
             Back
           </Button>
           <div className="flex items-center gap-2 text-white">
-            <div className="p-2 rounded-lg bg-teal-500/20 border border-teal-500/30">
-              <Shield className="h-5 w-5 text-teal-400" />
-            </div>
+            <Image
+              src="/logo.jpg"
+              alt="Noctrix AI Logo"
+              width={32}
+              height={32}
+              className="rounded-lg"
+            />
             <span className="text-xl font-bold">Noctrix</span>
           </div>
         </div>
@@ -72,8 +77,14 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md">
         <Card className="border-slate-700 bg-slate-800/50 backdrop-blur-sm shadow-2xl">
           <CardHeader className="text-center pb-8">
-            <div className="mx-auto mb-4 p-3 rounded-full bg-teal-500/20 border border-teal-500/30 w-fit">
-              <LogIn className="h-8 w-8 text-teal-400" />
+            <div className="mx-auto mb-4 w-fit">
+              <Image
+                src="/logo.jpg"
+                alt="Noctrix AI Logo"
+                width={64}
+                height={64}
+                className="rounded-xl"
+              />
             </div>
             <CardTitle className="text-2xl font-bold text-white">Welcome Back</CardTitle>
             <CardDescription className="text-slate-300">
