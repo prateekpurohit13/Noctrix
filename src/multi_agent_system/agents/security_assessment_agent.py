@@ -1,14 +1,79 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from ..base_agent import BaseAgent, AgentTask, AgentResult, TaskStatus
 from .. import llm_service
 import json
+from ...rag.retrieval import RAGRetriever
 
 class SecurityAssessmentAgent(BaseAgent):
-    def __init__(self):
+    def __init__(self, rag_retriever: Optional[RAGRetriever] = None):
         super().__init__("SecurityAssessmentAgent", "2.0.0-Enhanced")
+        self.rag_retriever = rag_retriever
 
     def _define_capabilities(self) -> List[str]:
         return ["security_risk_assessment", "compliance_mapping", "threat_detection"]
+
+    @staticmethod
+    def _format_guidance_section(title: str, rows: List[str]) -> str:
+        if not rows:
+            return ""
+        body = "\n".join(f"- {row}" for row in rows)
+        return f"## {title}\n{body}"
+
+    def _build_rag_guidance(
+        self,
+        entity_types_found: List[str],
+        rag_context_from_pipeline: Dict[str, Any]
+    ) -> str:
+        sections: List[str] = []
+        compliance_rows: List[str] = []
+        contextual_rows: List[str] = []
+
+        if self.rag_retriever:
+            try:
+                compliance_hits = self.rag_retriever.get_compliance_requirements(
+                    frameworks=["GDPR", "HIPAA", "PCI_DSS"],
+                    entity_types=entity_types_found,
+                    top_k=5
+                )
+                for hit in compliance_hits:
+                    doc = hit.get("document", "").replace("\n", " ")
+                    compliance_rows.append(doc)
+            except Exception as exc:
+                print(f"     -> WARNING: Compliance retrieval failed: {exc}")
+
+            try:
+                contextual_hits = self.rag_retriever.get_contextual_rules(
+                    entity_types=entity_types_found,
+                    text_context=json.dumps(entity_types_found),
+                    top_k=5
+                )
+                for rule in contextual_hits:
+                    doc = rule.get("document", "").replace("\n", " ")
+                    contextual_rows.append(doc)
+            except Exception as exc:
+                print(f"     -> WARNING: Contextual rule retrieval failed: {exc}")
+
+        if rag_context_from_pipeline:
+            for item in rag_context_from_pipeline.get("compliance_requirements", []) or []:
+                doc = item.get("document", "").replace("\n", " ")
+                if doc:
+                    compliance_rows.append(doc)
+            for item in rag_context_from_pipeline.get("contextual_rules", []) or []:
+                doc = item.get("document", "").replace("\n", " ")
+                if doc:
+                    contextual_rows.append(doc)
+
+        comp_section = self._format_guidance_section("Compliance References", compliance_rows)
+        ctx_section = self._format_guidance_section("Contextual Indicators", contextual_rows)
+
+        for section in [comp_section, ctx_section]:
+            if section:
+                sections.append(section)
+
+        if not sections:
+            return "No additional guidance available."
+
+        return "\n\n".join(sections)
 
     def process(self, task: AgentTask, progress_callback: callable = None) -> AgentResult:
         entities = task.input_data.get("entities", [])
@@ -51,6 +116,8 @@ class SecurityAssessmentAgent(BaseAgent):
 
         entity_types_found = list(entity_type_summary.keys())
         document_type = task.input_data.get("document_type", "document")
+        rag_context_from_pipeline = task.input_data.get("rag_context", {}) or {}
+        rag_guidance = self._build_rag_guidance(entity_types_found, rag_context_from_pipeline)
         
         system_prompt = f"""You are a cybersecurity risk analyst. Analyze the security risks for a {document_type} based ONLY on the entity types actually found in the document.
 
@@ -86,6 +153,9 @@ For EACH distinct security concern (aim for 2-5 findings based on complexity):
 REMEMBER: Quality over quantity - provide thorough, actionable findings that add real security value."""
 
         user_prompt = f"""Analyze this document's security posture based on the entity types and relationships found.
+
+## RAG Knowledge Guidance:
+{rag_guidance}
 
 ## Entity Type Summary:
 {json.dumps(entity_type_summary, indent=2)}
@@ -138,6 +208,8 @@ Provide comprehensive findings as a JSON array named "security_assessment_findin
             output_data = task.input_data.copy()
             output_data["security_assessment_findings"] = cleaned_findings
             output_data["assessment_summary"] = assessment_summary
+            output_data.setdefault("rag_context", rag_context_from_pipeline)
+            output_data["rag_guidance"] = rag_guidance
 
             print(f"     -> Security Assessment complete: {len(cleaned_findings)} findings identified")
             print(f"     -> Critical/High findings: {assessment_summary['critical_findings']}")

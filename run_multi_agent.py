@@ -14,6 +14,7 @@ from src.multi_agent_system import (
     AnonymizationAgent,
     ReportingAgent
 )
+from src.rag.service import get_rag_retriever
 from src.reporting.utils import export_pdf_from_md 
 
 def progress_callback(stage: str, progress: float, message: str):
@@ -49,13 +50,14 @@ def main():
             print(f"\n--- Analyzing Document {i+1}/{len(doms)}: {dom.file_name} ---")
             print("--- Stage 2: Multi-Agent System Initialization ---")
             orchestrator = AgentOrchestrator(max_workers=3)
+            rag_retriever = get_rag_retriever()
             agents = [
-            DocumentUnderstandingAgent(),
-            AnalysisAgent(),
-            SecurityAssessmentAgent(),
-            AnonymizationAgent(),
-            ReportingAgent()
-        ]
+                DocumentUnderstandingAgent(rag_retriever=rag_retriever),
+                AnalysisAgent(rag_retriever=rag_retriever),
+                SecurityAssessmentAgent(rag_retriever=rag_retriever),
+                AnonymizationAgent(rag_retriever=rag_retriever),
+                ReportingAgent()
+            ]
             
             for agent in agents:
                 orchestrator.register_agent(agent)

@@ -25,6 +25,7 @@ from src.security.rbac import allowed
 from src.security.audit import append_audit
 from src.document_processor.main import process_input
 from src.multi_agent_system import AgentOrchestrator
+from src.rag.service import get_rag_retriever
 from src.multi_agent_system.agents import (
     DocumentUnderstandingAgent, AnalysisAgent,
     SecurityAssessmentAgent, AnonymizationAgent, ReportingAgent
@@ -144,9 +145,13 @@ async def run_ai_pipeline(job_id: str, asset_id: int, file_name: str, temp_file_
         dom = doms[0]
         
         orchestrator = AgentOrchestrator()
+        rag_retriever = get_rag_retriever()
         agents = [
-            DocumentUnderstandingAgent(), AnalysisAgent(),
-            SecurityAssessmentAgent(), AnonymizationAgent(), ReportingAgent()
+            DocumentUnderstandingAgent(rag_retriever=rag_retriever),
+            AnalysisAgent(rag_retriever=rag_retriever),
+            SecurityAssessmentAgent(rag_retriever=rag_retriever),
+            AnonymizationAgent(rag_retriever=rag_retriever),
+            ReportingAgent()
         ]
         for agent in agents: orchestrator.register_agent(agent)
 

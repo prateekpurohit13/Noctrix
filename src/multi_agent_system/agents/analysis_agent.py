@@ -1,15 +1,58 @@
-from typing import List
+from typing import List, Optional, Dict, Any, Set, Tuple
 from ..base_agent import BaseAgent, AgentTask, AgentResult, TaskStatus
 from .. import llm_service
 import json
 import re
+import ipaddress
+from datetime import datetime
+from ...rag.retrieval import RAGRetriever
+
+NON_PERSON_TERMS = {
+    "source",
+    "destination",
+    "status",
+    "protocol",
+    "interface",
+    "interfaces",
+    "input",
+    "output",
+    "network",
+    "firewall",
+    "router",
+    "switch",
+    "port",
+    "ssid",
+    "uplink",
+    "downlink",
+    "wan",
+    "lan",
+    "subnet",
+    "gateway",
+    "summary",
+}
+
+INTERFACE_LABEL_PATTERNS = [
+    re.compile(r"^(?:[A-Za-z]+)?Ethernet\d+(?:/\d+){0,3}$", re.IGNORECASE),
+    re.compile(r"^(?:Gi|Fa|Fo|Te|Hu|Po)\d+(?:/\d+){1,3}$", re.IGNORECASE),
+    re.compile(r"^(?:eth|enp|ens|eno|lo)\d+[a-z0-9/:.-]*$", re.IGNORECASE),
+    re.compile(r"^(?:ge|xe|ae)-\d+/\d+/\d+$", re.IGNORECASE),
+    re.compile(r"^vlan\d+$", re.IGNORECASE),
+]
+
+IPV4_PATTERN = re.compile(
+    r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1?\d{1,2})\b"
+)
+IPV6_PATTERN = re.compile(
+    r"\b((?:[A-Fa-f0-9]{1,4}:){2,7}[A-Fa-f0-9]{1,4})\b"
+)
 
 
 class AnalysisAgent(BaseAgent):
-    def __init__(self, chunk_size=2000, chunk_overlap=200):
+    def __init__(self, chunk_size=2000, chunk_overlap=200, rag_retriever: Optional[RAGRetriever] = None):
         super().__init__("AnalysisAgent", "5.0.0-EnhancedDetection")
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.rag_retriever = rag_retriever
 
     def _define_capabilities(self) -> List[str]:
         return ["comprehensive_analysis", "pii_detection", "entity_relationship_mapping"]
@@ -25,6 +68,69 @@ class AnalysisAgent(BaseAgent):
             chunks.append(text[start:end])
             start += self.chunk_size - self.chunk_overlap
         return chunks
+
+    @staticmethod
+    def _normalize_token(text: Optional[str]) -> str:
+        if not text:
+            return ""
+        return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+    def _looks_like_interface_label(self, text: str) -> bool:
+        if not text:
+            return False
+
+        candidate = text.strip()
+        if not candidate or len(candidate) > 80:
+            return False
+
+        for pattern in INTERFACE_LABEL_PATTERNS:
+            if pattern.match(candidate):
+                return True
+
+        tokens = {
+            self._normalize_token(part)
+            for part in re.split(r"[\s:/.-]+", candidate)
+            if part
+        }
+        if tokens & NON_PERSON_TERMS:
+            return True
+
+        lowered = candidate.lower()
+        interface_keywords = [
+            "interface",
+            "ethernet",
+            "gigabit",
+            "uplink",
+            "downlink",
+            "wan",
+            "lan",
+            "ip",
+            "mac",
+            "ssid",
+            "router",
+            "switch",
+        ]
+        return any(keyword in lowered for keyword in interface_keywords)
+
+    @staticmethod
+    def _classify_ip_value(ip_text: str) -> Optional[Tuple[str, str]]:
+        try:
+            addr = ipaddress.ip_address(ip_text)
+        except ValueError:
+            return None
+
+        if any([
+            addr.is_private,
+            addr.is_loopback,
+            addr.is_link_local,
+            addr.is_reserved,
+            addr.is_multicast,
+        ]):
+            entity_type = "ip_address_private"
+        else:
+            entity_type = "ip_address_public"
+
+        return entity_type, "Tokenize"
 
     def _extract_json_from_response(self, response_text: str) -> dict:
         try:
@@ -108,10 +214,136 @@ class AnalysisAgent(BaseAgent):
                 
         return normalized
 
+    def _resolve_rag_context(self, task: AgentTask, full_text: str) -> Dict[str, Any]:
+        existing_context = task.input_data.get("rag_context", {}) or {}
+        if existing_context:
+            return existing_context
+
+        if not self.rag_retriever:
+            return {}
+
+        doc_type = task.input_data.get("document_type", "document")
+        try:
+            context = self.rag_retriever.get_comprehensive_context(
+                document_type=doc_type,
+                text_sample=full_text[:2000],
+                entity_types=None,
+            )
+            if context:
+                context["retrieved_at"] = datetime.utcnow().isoformat() + "Z"
+            return context or {}
+        except Exception as exc:
+            print(f"     -> WARNING: Unable to fetch RAG context: {exc}")
+            return {}
+
+    @staticmethod
+    def _format_knowledge_guidance(rag_context: Dict[str, Any], limit: int = 5) -> str:
+        if not rag_context:
+            return "No additional guidance available."
+
+        lines: List[str] = [
+            "Reference-only guidance below. Do NOT extract entities from these examples."
+        ]
+
+        patterns = rag_context.get("entity_patterns", []) or []
+        if patterns:
+            lines.append("Entity pattern hints (for detection strategy only):")
+            for pattern in patterns[:limit]:
+                meta = pattern.get("metadata", {})
+                entity_type = meta.get("entity_type", "unknown")
+                doc = pattern.get("document", "")
+                snippet = doc.split("\n")[0]
+                lines.append(f"- {entity_type}: {snippet}")
+
+        contextual_rules = rag_context.get("contextual_rules", []) or []
+        if contextual_rules:
+            lines.append("Contextual indicators (reference cues only):")
+            for rule in contextual_rules[:limit]:
+                meta = rule.get("metadata", {})
+                rule_id = meta.get("rule_id", "rule")
+                indicator_text = rule.get("document", "").replace("\n", " ")
+                lines.append(f"- {rule_id}: {indicator_text}")
+
+        scenarios = rag_context.get("similar_scenarios", []) or []
+        filtered_scenarios = [
+            scenario for scenario in scenarios
+            if scenario.get("relevance_score", 0) >= 0.6
+        ]
+        if filtered_scenarios:
+            lines.append("High-relevance scenarios (for analyst awareness only):")
+            for scenario in filtered_scenarios[:limit]:
+                meta = scenario.get("metadata", {})
+                scenario_id = meta.get("scenario_id", "scenario")
+                description = meta.get("description", "")
+                lines.append(f"- {scenario_id}: {description}")
+
+        if len(lines) == 1:
+            return "No additional guidance available."
+
+        return "\n".join(lines)
+
+    def _apply_rag_patterns(
+        self,
+        chunk_text: str,
+        rag_context: Dict[str, Any],
+        existing_entities: List[dict]
+    ) -> List[dict]:
+        if not rag_context:
+            return []
+
+        pattern_candidates = rag_context.get("entity_patterns", []) or []
+        existing_texts = {e.get("text") for e in existing_entities}
+        discovered: List[dict] = []
+
+        for candidate in pattern_candidates:
+            metadata = candidate.get("metadata", {}) or {}
+            entity_type = metadata.get("entity_type", "pattern_match")
+            risk_level = str(metadata.get("risk_level", "")).lower()
+            anonymization_strategy = "Redact" if risk_level in {"critical", "high"} else "Tokenize"
+
+            raw_patterns = metadata.get("patterns")
+            if isinstance(raw_patterns, str):
+                try:
+                    pattern_list = json.loads(raw_patterns)
+                except json.JSONDecodeError:
+                    pattern_list = []
+            else:
+                pattern_list = raw_patterns or []
+
+            for pattern in pattern_list:
+                try:
+                    regex = re.compile(pattern)
+                except re.error:
+                    continue
+
+                for match in regex.finditer(chunk_text):
+                    match_text = match.group(0)
+                    if match_text in existing_texts:
+                        continue
+                    discovered.append({
+                        "text": match_text,
+                        "entity_type": entity_type,
+                        "confidence": 0.92,
+                        "anonymization_strategy": anonymization_strategy,
+                        "start_char": match.start(),
+                        "end_char": match.end(),
+                        "source": "rag_pattern"
+                    })
+                    existing_texts.add(match_text)
+
+        return discovered
+
     def process(self, task: AgentTask, progress_callback: callable = None) -> AgentResult:
         full_text = task.input_data.get("full_text")
         if not full_text:
-            return self._create_result(task, TaskStatus.FAILED, error_message="No text content provided.")
+            return self._create_result(
+                task,
+                TaskStatus.FAILED,
+                error_message="No text content provided."
+            )
+
+        rag_context = self._resolve_rag_context(task, full_text)
+        knowledge_guidance = self._format_knowledge_guidance(rag_context)
 
         system_prompt = """You are an elite security and privacy expert specializing in comprehensive PII detection, data protection, and compliance. Your detection capabilities are state-of-the-art and you NEVER miss sensitive information.
 
@@ -121,6 +353,8 @@ class AnalysisAgent(BaseAgent):
 2. **SECURITY-FIRST MINDSET**: When in doubt, classify as sensitive and recommend tokenization or redaction.
 3. **CONTEXTUAL INTELLIGENCE**: Consider the context - even partial information can be sensitive when combined.
 4. **COMPLIANCE AWARENESS**: Apply GDPR, CCPA, HIPAA, and PCI-DSS standards strictly.
+5. **REF GUIDANCE HANDLING**: Never treat examples or guidance text as part of the document under review.
+6. **CONFIG CONTEXT AWARENESS**: Interface labels, column headings, UI field names, or network terms (e.g., "Source", "VLAN20", "GigabitEthernet0/1") are infrastructure data and MUST NOT be classified as person_name. Treat them as organizational identifiers only when appropriate.
 
 ## DETECTION CATEGORIES AND RULES:
 
@@ -137,7 +371,7 @@ class AnalysisAgent(BaseAgent):
 - **Biometric References**: Any mention of fingerprints, facial data
 
 ### TECHNICAL IDENTIFIERS (CRITICAL SECURITY RISK):
-- **AWS Resources**: 
+- **AWS Resources**:
   - IAM ARNs (arn:aws:iam::ACCOUNT:*) - ALWAYS REDACT the account number
   - Access Keys (AKIA*) - ALWAYS REDACT completely
   - Secret Keys - ALWAYS REDACT completely
@@ -150,9 +384,12 @@ class AnalysisAgent(BaseAgent):
   - Passwords (even if marked as examples) - ALWAYS REDACT
   - Tokens (JWT, OAuth, session) - ALWAYS REDACT
   - Database connection strings - ALWAYS REDACT sensitive parts
+- **Network Interfaces & Infrastructure Labels**:
+    - Items like "GigabitEthernet0/0/1", "VLAN20", "Port1", "Interface Status"
+    - Treat as infrastructure identifiers. Tokenize only when they reveal sensitive topology, NEVER classify as person_name
 - **Network Info**:
-  - Internal IP addresses (10.*, 192.168.*, 172.16-31.*) - TOKENIZE
-  - Public IP addresses - TOKENIZE
+    - Internal IP addresses (10.*, 192.168.*, 172.16-31.*) - TOKENIZE
+    - Public IP addresses (all valid IPv4 and IPv6) - TOKENIZE
   - Hostnames revealing organization structure - TOKENIZE
   - URLs with sensitive parameters - REDACT parameters
 
@@ -234,148 +471,272 @@ CRITICAL: Return ONLY valid JSON with "entities" and "relationships" arrays. Eve
 3. Assign appropriate anonymization strategies
 4. Map relationships between entities
 
+## Specialized Knowledge Guidance (REFERENCE ONLY - DO NOT EXTRACT FROM IT):
+<<BEGIN_REFERENCE_GUIDANCE>>
+{knowledge_guidance}
+<<END_REFERENCE_GUIDANCE>>
+
 ## Special Attention Areas:
 - AWS ARNs: The account number (12 digits after arn:aws:iam::) is ALWAYS sensitive
 - Names in ANY context (visitor logs, email addresses, documents)
 - Building/room identifiers (like "211/d Electrical") are organizational data - TOKENIZE
+- Network interface labels (e.g., "GigabitEthernet0/0/1", "VLAN20", "Port1") are infrastructure identifiers. Tokenize if they reveal sensitive topology but NEVER label them as person_name
 - ANY credential, key, or token regardless of context
 - Infrastructure names that reveal internal structure
+- All valid IP addresses (public or private, IPv4 or IPv6) must be detected and tokenized
 
 ## Examples of What You MUST Detect:
 
 1. AWS ARN: "arn:aws:iam::123456789012:role/TestRole"
-   - Entity: "123456789012" (AWS Account ID) - Redact
-   - Entity: "TestRole" (Role Name) - Tokenize
+     - Entity: "123456789012" (AWS Account ID) - Redact
+     - Entity: "TestRole" (Role Name) - Tokenize
 
 2. Building Info: "211/d Electrical"
-   - Entity: "211/d Electrical" (Building/Room Identifier) - Tokenize
+     - Entity: "211/d Electrical" (Building/Room Identifier) - Tokenize
 
 3. Visitor Log with names: "John Smith, Jane Doe, Bob Wilson, Alice Brown"
-   - ALL four names must be detected and marked for redaction
+     - ALL four names must be detected and marked for redaction
 
 4. Email: "john.doe@company.com"
-   - Entity: "john.doe" (Personal Identifier) - Redact
-   - Entity: "@company.com" (Domain) - Evaluate if internal (Tokenize) or public (Preserve)
+     - Entity: "john.doe" (Personal Identifier) - Redact
+     - Entity: "@company.com" (Domain) - Evaluate if internal (Tokenize) or public (Preserve)
 
 ## Document Text to Analyze:
 {text_chunk}
 
-Remember: 
+Remember:
 - NEVER miss a name or ID
 - When uncertain, err on the side of security
 - Building/location identifiers are sensitive organizational data
 - AWS account numbers are ALWAYS sensitive
+- Network interface labels and UI headings are NOT human names
 - Return ONLY valid JSON with exact field names: "text", "entity_type", "confidence", "anonymization_strategy", "start_char", "end_char"
 - Use accurate character positions for start_char and end_char
 - Confidence should be a decimal between 0.0 and 1.0"""
 
+        def _escape_for_prompt(value: Optional[str]) -> str:
+            if not value:
+                return ""
+            return value.replace("{", "{{").replace("}", "}}")
+
         try:
             chunks = self._create_chunks(full_text)
-            if len(chunks) > 1:
-                print(f"     -> Document is large. Splitting into {len(chunks)} chunk(s).")
+            total_chunks = len(chunks)
+            if total_chunks == 0:
+                return self._create_result(
+                    task,
+                    TaskStatus.FAILED,
+                    error_message="Unable to create chunks for analysis."
+                )
 
-            all_entities = []
-            all_relationships = []
-            seen_entities = set()
+            if total_chunks > 1:
+                print(f"     -> Document is large. Splitting into {total_chunks} chunk(s).")
 
-            for i, chunk in enumerate(chunks):
-                print(f"     -> Performing deep PII analysis on Chunk {i+1}/{len(chunks)}...")
-                chunk_offset = i * (self.chunk_size - self.chunk_overlap)
-                user_prompt = user_prompt_template.format(text_chunk=chunk)
-                
+            all_entities: List[dict] = []
+            all_relationships: List[dict] = []
+            seen_entities: Set[Tuple[str, int]] = set()
+            escaped_guidance = _escape_for_prompt(knowledge_guidance)
+
+            if progress_callback:
+                progress_callback(0.0)
+
+            for index, chunk in enumerate(chunks):
+                print(f"     -> Performing deep PII analysis on Chunk {index+1}/{total_chunks}...")
+                chunk_offset = index * (self.chunk_size - self.chunk_overlap)
+
+                escaped_chunk = _escape_for_prompt(chunk)
+                user_prompt = user_prompt_template.format(
+                    text_chunk=escaped_chunk,
+                    knowledge_guidance=escaped_guidance
+                )
+
                 try:
                     raw_response = llm_service.get_llm_response(
                         system_prompt,
                         user_prompt,
                         timeout=task.timeout_seconds
                     )
-                    
-                    llm_response = self._extract_json_from_response(raw_response)                    
-                    chunk_entities = llm_response.get("entities", [])
-                    chunk_relationships = llm_response.get("relationships", [])
+
+                    llm_response = self._extract_json_from_response(raw_response)
+
+                    chunk_entities = llm_response.get("entities", []) or []
+                    if not isinstance(chunk_entities, list):
+                        chunk_entities = []
+
+                    chunk_relationships = llm_response.get("relationships", []) or []
+                    if not isinstance(chunk_relationships, list):
+                        chunk_relationships = []
+
                     validated_entities = self._apply_enhanced_validation(
-                        self._validate_entities(chunk_entities), 
-                        chunk
+                        self._validate_entities(chunk_entities),
+                        chunk,
+                        rag_context
                     )
-                    
+
+                    rag_entities = self._apply_rag_patterns(chunk, rag_context, validated_entities)
+                    if rag_entities:
+                        print(f"     -> RAG patterns contributed {len(rag_entities)} entities")
+                        validated_entities.extend(rag_entities)
+
                     for entity in validated_entities:
-                        entity['start_char'] += chunk_offset
-                        entity['end_char'] += chunk_offset
-                        entity_key = (entity['text'], entity['start_char'])
+                        entity["start_char"] += chunk_offset
+                        entity["end_char"] += chunk_offset
+                        entity_key = (entity.get("text", ""), entity.get("start_char", -1))
                         if entity_key not in seen_entities:
                             all_entities.append(entity)
                             seen_entities.add(entity_key)
 
-                    if isinstance(chunk_relationships, list):
-                        all_relationships.extend(chunk_relationships)
-                    
-                    print(f"     -> Chunk {i+1}: Found {len(validated_entities)} entities, {len(chunk_relationships)} relationships")
-                    
+                    all_relationships.extend(chunk_relationships)
+
+                    print(
+                        f"     -> Chunk {index+1}: Found {len(validated_entities)} entities, "
+                        f"{len(chunk_relationships)} relationships"
+                    )
+
                 except Exception as chunk_error:
-                    print(f"     -> Error processing chunk {i+1}: {chunk_error}")
+                    print(f"     -> Error processing chunk {index+1}: {chunk_error}")
                     continue
+                finally:
+                    if progress_callback:
+                        progress = ((index + 1) / total_chunks) * 100
+                        progress_callback(progress)
+
             all_entities = self._final_validation_pass(all_entities, full_text)
-            
+
             result_data = {
                 "entities": all_entities,
                 "relationships": all_relationships,
                 "analysis_summary": {
                     "entities_found": len(all_entities),
                     "relationships_found": len(all_relationships),
-                    "chunks_processed": len(chunks),
-                    "high_risk_entities": len([e for e in all_entities if e.get('confidence', 0) > 0.9])
-                }
+                    "chunks_processed": total_chunks,
+                    "high_risk_entities": len(
+                        [entity for entity in all_entities if entity.get("confidence", 0) > 0.9]
+                    ),
+                },
+                "rag_context": rag_context,
             }
-            
+
             print(f"     -> Analysis complete: {len(all_entities)} total entities detected")
-            print(f"     -> High-risk entities: {result_data['analysis_summary']['high_risk_entities']}")
-            
+            print(
+                "     -> High-risk entities: "
+                f"{result_data['analysis_summary']['high_risk_entities']}"
+            )
+
             return self._create_result(task, TaskStatus.COMPLETED, data=result_data)
 
-        except Exception as e:
-            print(f"     -> Critical error in Analysis Agent: {e}")
+        except Exception as exc:
+            print(f"     -> Critical error in Analysis Agent: {exc}")
             return self._create_result(
                 task,
                 TaskStatus.FAILED,
-                error_message=f"An unexpected error occurred in Analysis Agent: {e}"
+                error_message=f"An unexpected error occurred in Analysis Agent: {exc}"
             )
 
-    def _apply_enhanced_validation(self, entities: List[dict], chunk_text: str) -> List[dict]:
+    def _apply_enhanced_validation(
+        self,
+        entities: List[dict],
+        chunk_text: str,
+        rag_context: Optional[Dict[str, Any]] = None
+    ) -> List[dict]:
         patterns = {
             'aws_arn_account': (r'arn:aws:[^:]+::(\d{12}):', 'aws_account_id'),
             'room_building': (r'\b\d{1,4}/[a-zA-Z]\s+\w+\b', 'building_identifier'),
             'person_name': (r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b', 'person_name'),
             'email_name': (r'([a-zA-Z]+[._]?[a-zA-Z]+)@', 'email_username'),
+            'ipv4_address': (IPV4_PATTERN, 'ip_address'),
+            'ipv6_address': (IPV6_PATTERN, 'ip_address'),
         }
-        
-        existing_texts = {e['text'] for e in entities}
-        
-        for pattern_name, (pattern, entity_type) in patterns.items():
-            matches = re.finditer(pattern, chunk_text)
-            for match in matches:
-                matched_text = match.group(1) if match.groups() else match.group(0)                
-                if matched_text in existing_texts:
+
+        filtered_entities: List[dict] = []
+        existing_texts: Set[str] = set()
+
+        name_stop_words = {
+            self._normalize_token(word)
+            for word in {
+                "meeting",
+                "reason",
+                "sales",
+                "visitor",
+                "agenda",
+                "interface",
+                "source",
+                "destination",
+                "status",
+                "protocol",
+                "ethernet",
+                "gigabit",
+                "router",
+                "switch",
+                "firewall",
+                "gateway",
+            }
+        }
+
+        for entity in entities:
+            text = (entity.get('text') or '').strip()
+            if not text:
+                continue
+
+            entity_type = (entity.get('entity_type') or '').lower()
+            normalized = self._normalize_token(text)
+
+            if entity_type in {'person_name', 'person', 'name'}:
+                if normalized in NON_PERSON_TERMS or normalized in name_stop_words or self._looks_like_interface_label(text):
+                    print(f"     -> Filtering false-positive person entity: {text}")
                     continue
-                if entity_type in ['person_name', 'aws_account_id', 'email_username']:
+
+            filtered_entities.append(entity)
+            existing_texts.add(text)
+
+        entities = filtered_entities
+
+        for pattern_name, (pattern, entity_type) in patterns.items():
+            iterator = (
+                pattern.finditer(chunk_text)
+                if hasattr(pattern, 'finditer')
+                else re.finditer(pattern, chunk_text)
+            )
+            for match in iterator:
+                matched_text = match.group(1) if match.groups() else match.group(0)
+                if not matched_text or matched_text in existing_texts:
+                    continue
+
+                if entity_type == 'person_name':
+                    normalized = self._normalize_token(matched_text)
+                    if (
+                        normalized in NON_PERSON_TERMS
+                        or normalized in name_stop_words
+                        or self._looks_like_interface_label(matched_text)
+                    ):
+                        continue
+
+                resolved_type = entity_type
+                if entity_type in {'person_name', 'aws_account_id', 'email_username'}:
                     strategy = 'Redact'
-                elif entity_type in ['building_identifier']:
+                elif entity_type == 'building_identifier':
                     strategy = 'Tokenize'
+                elif entity_type == 'ip_address':
+                    classification = self._classify_ip_value(matched_text)
+                    if not classification:
+                        continue
+                    resolved_type, strategy = classification
                 else:
                     strategy = 'Tokenize'
-                
+
                 new_entity = {
                     'text': matched_text,
-                    'entity_type': entity_type,
+                    'entity_type': resolved_type,
                     'confidence': 0.85,
                     'anonymization_strategy': strategy,
                     'start_char': match.start(1) if match.groups() else match.start(0),
                     'end_char': match.end(1) if match.groups() else match.end(0)
                 }
-                
+
                 entities.append(new_entity)
                 existing_texts.add(matched_text)
-                print(f"     -> Pattern detection added: {matched_text} ({entity_type})")
-        
+                print(f"     -> Pattern detection added: {matched_text} ({resolved_type})")
+
         for entity in entities:
             entity_type = entity.get('entity_type', '').lower()
             current_strategy = entity.get('anonymization_strategy', '')
@@ -385,7 +746,19 @@ Remember:
             elif any(keyword in entity_type for keyword in ['building', 'room', 'identifier']):
                 if current_strategy == 'Preserve':
                     entity['anonymization_strategy'] = 'Tokenize'
-                    
+            elif 'ip_address' in entity_type and current_strategy != 'Tokenize':
+                entity['anonymization_strategy'] = 'Tokenize'
+
+            if rag_context:
+                risk_level = None
+                for pattern in rag_context.get('entity_patterns', []):
+                    meta = pattern.get('metadata', {}) or {}
+                    if meta.get('entity_type', '').lower() == entity.get('entity_type', '').lower():
+                        risk_level = str(meta.get('risk_level', '')).lower()
+                        break
+                if risk_level in {'critical', 'high'} and entity.get('anonymization_strategy') != 'Redact':
+                    entity['anonymization_strategy'] = 'Redact'
+
         return entities
 
     def _final_validation_pass(self, entities: List[dict], full_text: str) -> List[dict]:
