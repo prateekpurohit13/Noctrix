@@ -287,13 +287,6 @@ Contributions are welcome! Please follow these steps:
         <sub><b>Anshika Raj</b></sub>
       </a>
     </td>
-    <td align="center">
-      <a href="https://github.com/pratyushverma2005-debug">
-        <img src="https://github.com/pratyushverma2005-debug.png" width="100px;" alt="Pratyush Verma" style="border-radius: 50%;"/>
-        <br />
-        <sub><b>Pratyush Verma</b></sub>
-      </a>
-    </td>
   </tr>
 </table>
 

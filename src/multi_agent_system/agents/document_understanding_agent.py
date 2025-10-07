@@ -79,18 +79,28 @@ class DocumentUnderstandingAgent(BaseAgent):
         hints: List[Dict[str, Any]]
     ) -> dict:
         system_prompt = (
-            "You are an expert document analyst. Identify the document type and security domains based strictly on the "
-            "actual document text. Never assume it's a 'Network Diagram' unless the content truly matches."
+            "You are an expert document analyst with deep understanding of various document types. "
+            "Analyze the actual content and classify it accurately based on what the document truly contains. "
+            "Be specific and descriptive - avoid generic classifications unless the document is genuinely unclear."
         )
 
         hint_payload = json.dumps(hints, ensure_ascii=False)
         user_prompt = (
-            "Classify the document described below. Use the hints as supportive evidence only if they align with the text.\n"
-            "Return JSON with keys: document_type (short title), security_domains (list of 1-3 domains),"
-            " and rationale (brief justification). Document text should always take precedence over hints.\n"
-            f"Document text (truncated):\n<<<\n{text_sample}\n>>>\n\n"
-            f"Derived hints:\n{hint_payload}\n"
-            "JSON Schema:{\n  \"document_type\": \"string\",\n  \"security_domains\": [\"string\"],\n  \"rationale\": \"string\"\n}"
+            "Analyze and classify this document based on its actual content. Provide a specific, meaningful document type.\n\n"
+            "GUIDELINES:\n"
+            "- Classify based on the document's primary purpose and content\n"
+            "- Be specific: prefer 'Network Firewall Configuration' over 'Generic Document'\n"
+            "- Use hints only if they align with the actual text content\n"
+            "- Identify 1-3 relevant security domains (e.g., network_security, physical_security, cloud_security, data_privacy)\n"
+            "- Only use 'Generic Document' if the content is truly unclear or mixed-purpose\n\n"
+            f"DOCUMENT TEXT:\n<<<\n{text_sample}\n>>>\n\n"
+            f"HINTS (for reference only):\n{hint_payload}\n\n"
+            "Return JSON with:\n"
+            "{\n"
+            "  \"document_type\": \"Specific descriptive name\",\n"
+            "  \"security_domains\": [\"domain1\", \"domain2\"],\n"
+            "  \"rationale\": \"Brief explanation of classification\"\n"
+            "}"
         )
 
         raw_response = llm_service.get_llm_response(
@@ -145,7 +155,7 @@ class DocumentUnderstandingAgent(BaseAgent):
         return description
 
     def _generate_classification_hints(self, text: str) -> List[Dict[str, Any]]:
-        upper_text = text.upper()
+        """Generate flexible hints based on content patterns, not exact matches."""
         hints: List[Dict[str, Any]] = []
 
         def add_hint(document_type: str, reason: str, confidence: float):
@@ -155,52 +165,38 @@ class DocumentUnderstandingAgent(BaseAgent):
                 "confidence": confidence
             })
 
-        if re.search(r"VISITOR(S)?\s+LOG", upper_text) or "PLEASE SIGN IN" in upper_text:
-            add_hint(
-                "Visitor Log",
-                "Found headers such as 'VISITORS LOG BOOK' or sign-in columns.",
-                0.95
-            )
+        # Use more flexible pattern matching
+        text_lower = text.lower()
+        
+        # Physical security indicators
+        if any(term in text_lower for term in ["visitor", "sign in", "entry", "badge", "access log"]):
+            add_hint("Visitor/Access Log", "Contains visitor or access control terminology", 0.7)
+        
+        # Cloud/IAM indicators
+        if any(term in text_lower for term in ["iam", "role", "policy", "permission", "aws", "azure", "gcp", "assume role"]):
+            add_hint("Cloud IAM Configuration", "Contains cloud identity and access management terms", 0.75)
+        
+        # Network security indicators
+        if any(term in text_lower for term in ["firewall", "port", "tcp", "udp", "ip address", "subnet", "source ranges"]):
+            add_hint("Network Security Document", "Contains networking and security terminology", 0.7)
+        
+        # Compliance/Policy indicators
+        if any(term in text_lower for term in ["compliance", "audit", "regulation", "policy", "standard"]):
+            add_hint("Compliance/Policy Document", "Contains compliance or policy language", 0.65)
+        
+        # Monitoring indicators
+        if any(term in text_lower for term in ["monitor", "alert", "dashboard", "metric", "log", "cctv", "camera"]):
+            add_hint("Monitoring/Operations Document", "Contains monitoring or operational terms", 0.65)
+        
+        # Security incident indicators
+        if any(term in text_lower for term in ["incident", "breach", "vulnerability", "threat", "attack"]):
+            add_hint("Security Incident Document", "Contains incident or threat terminology", 0.7)
 
-        if re.search(r"GROUPNAME\"|POLICYDOCUMENT", text, re.IGNORECASE):
-            add_hint(
-                "AWS IAM Policy",
-                "Detected IAM policy keywords like GroupName and PolicyDocument.",
-                0.9
-            )
-
-        if "ASSUME ROLE POLICY" in upper_text or "ROLEID" in upper_text:
-            add_hint(
-                "AWS IAM Role Policy",
-                "Detected role policy commands and trust policy references.",
-                0.9
-            )
-
-        if re.search(r"SOURCE RANGES" , upper_text) and re.search(r"TCP:22", upper_text):
-            add_hint(
-                "Firewall Rule Table",
-                "Contains firewall rule columns such as source ranges and TCP/UDP allowances.",
-                0.88
-            )
-
-        ip_hits = re.findall(r"\b(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b", text)
-        if len(ip_hits) >= 3:
-            add_hint(
-                "Network Monitoring Dashboard",
-                "Multiple IP addresses and monitoring terms detected.",
-                0.8
-            )
-
-        if re.search(r"CCTV", upper_text) or "CAMERAS" in upper_text:
-            add_hint(
-                "CCTV Monitoring Sheet",
-                "Camera monitoring terminology present.",
-                0.75
-            )
-
+        # If no strong hints found
         if not hints:
-            add_hint("Generic Document", "No strong structural indicators found.", 0.3)
+            add_hint("Generic Document", "No strong structural indicators found", 0.3)
 
+        # Sort by confidence but don't make them definitive
         return sorted(hints, key=lambda h: h["confidence"], reverse=True)
 
     def _apply_classification_hints(
@@ -208,33 +204,49 @@ class DocumentUnderstandingAgent(BaseAgent):
         response: Dict[str, Any],
         hints: List[Dict[str, Any]]
     ) -> Tuple[str, List[str]]:
+        """Apply hints only when LLM classification is clearly weak."""
         document_type = (response or {}).get("document_type", "unknown")
         security_domains = response.get("security_domains", []) if isinstance(response, dict) else []
 
         if isinstance(security_domains, str):
             security_domains = [security_domains]
 
-        if not security_domains:
-            security_domains = ["data_privacy"]
-
-        top_hint = hints[0] if hints else None
-
-        if top_hint and top_hint["confidence"] >= 0.9:
-            if document_type.lower() in {"unknown", "network diagram", "generic document"}:
+        # Trust the LLM first - only override if it clearly failed
+        if document_type.lower() in {"unknown", "unclear", "generic", "generic document", ""}:
+            # Use hints only when LLM couldn't classify
+            top_hint = hints[0] if hints else None
+            if top_hint and top_hint["confidence"] >= 0.65:
                 document_type = top_hint["document_type"]
+                print(f"     -> Using hint classification: {document_type}")
 
-        restricted_domains = {
-            "Visitor Log": ["physical_security", "data_privacy"],
-            "AWS IAM Policy": ["cloud_security", "identity_access_management"],
-            "AWS IAM Role Policy": ["cloud_security", "identity_access_management"],
-            "Firewall Rule Table": ["network_security", "cloud_security"],
-            "Network Monitoring Dashboard": ["network_security"]
-        }
-
-        if document_type in restricted_domains:
-            security_domains = restricted_domains[document_type]
+        # Infer security domains from document type if not provided
+        if not security_domains or security_domains == ["general"]:
+            security_domains = self._infer_security_domains(document_type)
 
         return document_type, security_domains
+
+    def _infer_security_domains(self, document_type: str) -> List[str]:
+        """Infer security domains based on document type keywords."""
+        doc_type_lower = document_type.lower()
+        domains = []
+        
+        if any(term in doc_type_lower for term in ["iam", "role", "policy", "cloud", "aws", "azure"]):
+            domains.extend(["cloud_security", "identity_access_management"])
+        
+        if any(term in doc_type_lower for term in ["network", "firewall", "port", "ip"]):
+            domains.append("network_security")
+        
+        if any(term in doc_type_lower for term in ["visitor", "access", "badge", "physical"]):
+            domains.extend(["physical_security", "data_privacy"])
+        
+        if any(term in doc_type_lower for term in ["compliance", "audit", "regulation"]):
+            domains.append("compliance")
+        
+        if any(term in doc_type_lower for term in ["incident", "breach", "vulnerability"]):
+            domains.append("incident_response")
+        
+        # Default fallback
+        return domains if domains else ["data_privacy"]
 
     def _extract_and_clean_text(self, dom) -> str:
         text_parts = []

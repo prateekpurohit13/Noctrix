@@ -349,7 +349,7 @@ class AnalysisAgent(BaseAgent):
 
 ## CRITICAL DETECTION PRINCIPLES:
 
-1. **ZERO TOLERANCE FOR MISSED PII**: Every name, ID, account number, or sensitive identifier MUST be detected.
+1. **ZERO TOLERANCE FOR MISSED PII**: Every name, ID, account number, or sensitive identifier MUST be detected.  Use your natural language understanding to identify genuine PII. Don't over-classify common words or labels.
 2. **SECURITY-FIRST MINDSET**: When in doubt, classify as sensitive and recommend tokenization or redaction.
 3. **CONTEXTUAL INTELLIGENCE**: Consider the context - even partial information can be sensitive when combined.
 4. **COMPLIANCE AWARENESS**: Apply GDPR, CCPA, HIPAA, and PCI-DSS standards strictly.
